@@ -17,7 +17,7 @@ unsigned int listeningPort = 9999;
 OscUDPwifi oscUDPwifi;
 NetAddress destination;
 
-const int keyPin = 2;//4
+const int keyPin = 14;//4
 int keyState = 0;
 
 
@@ -186,7 +186,7 @@ void loop() {
   digitalWrite(bulb1pin, bulb1);
   digitalWrite(bulb2pin, bulb2);
   digitalWrite(bulb3pin, bulb3);
-  digitalWrite(bulb4pin, bulb4);
+  digitalWrite(bulb4pin, bulb4); 
 
 }
 
@@ -260,6 +260,9 @@ void KeyDetect() {
       rawInput = "";
     } else if (duration > wordGap && !wordInput.equals("null")) {
       wordFinished = true;
+      OscMessage msg("/key");
+      msg.add(wordInput);
+      oscUDPwifi.send(msg, destination);
       //wordInput="";
     }
   }
