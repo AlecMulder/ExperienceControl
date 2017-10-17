@@ -1,0 +1,4 @@
+rfidmagic1 rfidmagic1 1
+rfidmagic2 rfidmagic2 2
+rfidmagic3 rfidmagic3 3
+rfidmagic4 rfidmagic4 4
