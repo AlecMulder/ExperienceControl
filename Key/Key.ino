@@ -39,15 +39,8 @@ long lastTimestamp = 0;
 boolean buttonWasPressed = false;
 
 //four LED/bulbs
-int bulb1pin = 0;
-int bulb2pin = 4;
-int bulb3pin = 13;
-int bulb4pin = 12;
-
-int bulb1 = LOW;
-int bulb2 = LOW;
-int bulb3 = LOW;
-int bulb4 = LOW;
+int bulbPins[] = {0, 4, 13, 12};
+int bulbs[] = {0, 0, 0, 0};
 
 boolean sent = false;
 
@@ -151,10 +144,9 @@ void setup() {
   destination.set(destinationIP, destinationPort);
   pinMode(keyPin, INPUT);
   pinMode(5, OUTPUT);
-  pinMode(bulb1pin, OUTPUT);
-  pinMode(bulb2pin, OUTPUT);
-  pinMode(bulb3pin, OUTPUT);
-  pinMode(bulb4pin, OUTPUT);
+  for (int i = 0; i < 4; i++) {
+    pinMode(bulbPins[i], OUTPUT);
+  }
 
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
     battArr[thisReading] = 0;
@@ -182,17 +174,32 @@ void loop() {
       readIndex = 0;
     }
   }
-
-  digitalWrite(bulb1pin, bulb1);
-  digitalWrite(bulb2pin, bulb2);
-  digitalWrite(bulb3pin, bulb3);
-  digitalWrite(bulb4pin, bulb4); 
-
+  for (int i = 0; i < 4; i++) {
+    digitalWrite(bulbPins[i], bulbs[i]);
+  }
 }
 
 void oscEvent(OscMessage & msg) {
   msg.plug("/sounder/updateWord", updateWord);
   msg.plug("/key/bulbs", updateBulbs);
+  msg.plug("/key/incorrect", incorrect);
+}
+
+//blinks the specified bulb three times
+void incorrect(OscMessage & msg) {
+  int bulb = msg.getInt(0);
+
+digitalWrite(bulbPins[bulb], HIGH); //turn the bulb on
+delay(500);
+digitalWrite(bulbPins[bulb], LOW);  //turn the bulb off
+delay(250);
+digitalWrite(bulbPins[bulb], HIGH); //turn the bulb on
+delay(500);
+digitalWrite(bulbPins[bulb], LOW);  //turn the bulb off
+delay(250);
+digitalWrite(bulbPins[bulb], HIGH); //turn the bulb on
+delay(500);
+digitalWrite(bulbPins[bulb], LOW);  //turn the bulb off
 }
 
 void updateWord(OscMessage & msg) {
@@ -201,10 +208,9 @@ void updateWord(OscMessage & msg) {
 }
 
 void updateBulbs(OscMessage & msg) {
-  bulb1 = msg.getInt(0);
-  bulb2 = msg.getInt(1);
-  bulb3 = msg.getInt(2);
-  bulb4 = msg.getInt(3);
+  for (int i = 0; i < 4; i++) {
+    bulbs[i] = msg.getInt(i);
+  }
 }
 
 void sendOscStatus() {

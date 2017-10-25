@@ -41,7 +41,18 @@ class Key {
   }
 
   public void letterIncorrect() {
-    
+    int currentBulb = 0;
+    for (int i = 0; i<bulbs.length; i++) {
+      if (bulbs[i] == 1)
+        currentBulb=i+1;
+    }
+    if (address!=null) {
+      OscMessage msg = new OscMessage(addrPattern + "/incorrect");
+        msg.add(currentBulb+1);
+      oscNet.send(msg, address);
+    } else {
+      throw new NullPointerException();
+    }
   }
 
   public void updateBulbs() {
