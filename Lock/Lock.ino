@@ -10,8 +10,8 @@ unsigned int listeningPort = 9999;
 OscUDPwifi oscUDPwifi;
 NetAddress destination;
 
-const char ssid[] = "Cottage";//wifi name
-const char password[] = "57575757";//wifi password
+const char ssid[] = "X-Files";//wifi name
+const char password[] = "paradigm";//wifi password
 
 // The IP address of a computer you are trying to reach
 
@@ -35,10 +35,16 @@ int highestInput = 500;
 //.618 == 4.2v  == 632/1023
 //.462 == 3.14v == 473/1023
 
+float persistence = 0.9;
+float previous_output = 0;
+float output;
+float input;
+
 void setup() {
   Serial.begin(9600);
   pinMode(lockPin, OUTPUT);
   digitalWrite(lockPin, unlocked);
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   // wait for wifi to connect
   Serial.print("Connecting to ");
@@ -67,20 +73,12 @@ void setup() {
 
 void loop()
 {
-  if (ms > 40000) {
     sendOscStatus();
-    ms = 0;
-  }
-  if (ms % 5000 == 0) {
-    total = total - battArr[readIndex];
-    battArr[readIndex] = analogRead(A0) * (68 / 8.25) / 1000;
-    //battArr[readIndex] = map(analogRead(A0), lowestInput, highestInput, 0, 100);
-    total = total + battArr[readIndex];
-    readIndex++;
-    if (readIndex >= numReadings) {
-      readIndex = 0;
-    }
-  }
+   
+  input = analogRead(A0) * (68 / 8.25) / 1000;
+  output = input * (1 - persistence ) + previous_output * (persistence);
+  previous_output = output;
+  
   yield();
   oscUDPwifi.listen();
   ms++;
@@ -98,7 +96,7 @@ void lockPlug(OscMessage & msg) {
 }
 
 void sendOscStatus() {
-  batteryLevel = total / numReadings;
+  batteryLevel = output;
   OscMessage msg("/lock");
   msg.add(unlocked);
   msg.add(batteryLevel);

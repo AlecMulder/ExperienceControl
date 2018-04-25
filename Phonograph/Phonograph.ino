@@ -15,8 +15,8 @@ unsigned int listeningPort = 9999;
 OscUDPwifi oscUDPwifi;
 NetAddress destination;
 
-const char ssid[] = "Cottage";//wifi name
-const char password[] = "57575757";//wifi password
+const char ssid[] = "X-Files";//wifi name
+const char password[] = "paradigm";//wifi password
 
 // The IP address of a computer you are trying to reach
 
@@ -37,6 +37,12 @@ float total = 0;
 float batteryLevel;
 int lowestInput = 370;
 int highestInput = 520;
+
+float persistence = 0.9;
+float previous_output = 0;
+float output;
+float input;
+
 //.618 == 4.2v  == 632/1023 - actually ~520
 //.462 == 3.14v == 473/1023 - actually ~ 370
 
@@ -56,7 +62,7 @@ void setup() {
   }
   delay(1);  //wait 1ms for mp3 module to set volume
   myDFPlayer.volume(volume);
-
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   // wait for wifi to connect
   Serial.print("Connecting to ");
@@ -85,28 +91,19 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if (ms > 40000) {
-    Serial.println(batteryLevel);
-    sendOscStatus();
-    ms = 0;
-  }
+
+  sendOscStatus();
   yield();
   oscUDPwifi.listen();
   ms++;
-  if (ms % 5000 == 0) {
-    total = total - battArr[readIndex];
-    battArr[readIndex] = analogRead(A0) * (68 / 8.67) / 1000;
-    //battArr[readIndex] = map(analogRead(A0), lowestInput, highestInput, 0, 100);
-    total = total + battArr[readIndex];
-    readIndex++;
-    if (readIndex >= numReadings) {
-      readIndex = 0;
-    }
-  }
+
+  input = analogRead(A0) * (68 / 8.67) / 1000;
+  output = input * (1 - persistence ) + previous_output * (persistence);
+  previous_output = output;
 }
 
 void sendOscStatus() {
-  batteryLevel = total / numReadings;
+  batteryLevel = output;
   playing = digitalRead(0);
 
   OscMessage msg("/Phonograph");

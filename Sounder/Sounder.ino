@@ -18,8 +18,8 @@ unsigned int listeningPort = 9999; // listen at port 9999
 OscUDPwifi oscUDPwifi;
 NetAddress destination;
 
-const char ssid[] = "Cottage";//wifi name
-const char password[] = "57575757";//wifi password
+const char ssid[] = "X-Files";//wifi name
+const char password[] = "paradigm";//wifi password
 
 IPAddress destinationIP(255, 255, 255, 255);
 int destinationPort = 12000;//
@@ -34,6 +34,12 @@ int lowestInput = 300;
 int highestInput = 502;
 //.618 == 4.2v  == 632/1023 - fully charged 4.13 -
 //.462 == 3.14v == 473/1023  --- went as low as 291 - not linear
+
+float persistence = 0.9;
+float previous_output = 0;
+float output;
+float input;
+
 
 //Define the sounder Pin
 #define PIN_OUT        5
@@ -143,11 +149,11 @@ void loop() {
 
   //3.962v
 
-  if (millis() % 1000 == 0 && ms > 5) {
-    sendOscStatus();
-    ms = 0;
+  // if (millis() % 1000 == 0 && ms > 5) {
+  sendOscStatus();
+  // ms = 0;
 
-  }
+  //}
 
   if (!morseCode.equals("")) {
     //morseCode.trim();
@@ -160,16 +166,10 @@ void loop() {
   yield();
   ms++;
   oscUDPwifi.listen();
-  if (ms % 1000 == 0) {
-    total = total - battArr[readIndex];
-    battArr[readIndex] = analogRead(A0) * (68 / 7.929) / 1000;
-    //battArr[readIndex] = map(analogRead(A0), lowestInput, highestInput, 0, 100);
-    total = total + battArr[readIndex];
-    readIndex++;
-    if (readIndex >= numReadings) {
-      readIndex = 0;
-    }
-  }
+  
+  input = analogRead(A0) * (68 / 7.929) / 1000;
+  output = input * (1 - persistence ) + previous_output * (persistence);
+  previous_output = output;
 }
 
 ///////////////////////OSC/////////////////////////////
@@ -195,7 +195,7 @@ void updateWord(OscMessage & msg) {
 
 // send OSC Internet messages
 void sendOscStatus() {
-  batteryLevel = total / numReadings;
+  batteryLevel = output;
   OscMessage msg("/sounder"); // this could be any pattern
   if (morseRecieved == "") {
     msg.add(false);
@@ -316,4 +316,5 @@ String cleanMorseCode(String in) {
   }
   return out;
 }
+
 

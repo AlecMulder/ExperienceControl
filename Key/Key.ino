@@ -17,12 +17,12 @@ unsigned int listeningPort = 9999;
 OscUDPwifi oscUDPwifi;
 NetAddress destination;
 
-const int keyPin = 14;//4
+const int keyPin = 4;//4
 int keyState = 0;
 
 
-const char ssid[] = "Cottage";//wifi name
-const char password[] = "57575757";//wifi password
+const char ssid[] = "X-Files";//wifi name
+const char password[] = "paradigm";//wifi password
 
 IPAddress destinationIP(255, 255, 255, 255);
 int destinationPort = 12000;
@@ -60,68 +60,18 @@ int highestInput = 502;
 //.618 == 4.2v  == 632/1023
 //.462 == 3.14v == 473/1023
 
-//temporary string to look for
-//will be changed as soon as the client connects
-char* goalWord = "something";
-
-static const struct {
-  const char letter, *code;
-} MorseMap[] =
-{
-  { 'A', ".-" },
-  { 'B', "-..." },
-  { 'C', "-.-." },
-  { 'D', "-.." },
-  { 'E', "." },
-  { 'F', "..-." },
-  { 'G', "--." },
-  { 'H', "...." },
-  { 'I', ".." },
-  { 'J', ".---" },
-  { 'K', ".-.-" },
-  { 'L', ".-.." },
-  { 'M', "--" },
-  { 'N', "-." },
-  { 'O', "---" },
-  { 'P', ".--." },
-  { 'Q', "--.-" },
-  { 'R', ".-." },
-  { 'S', "..." },
-  { 'T', "-" },
-  { 'U', "..-" },
-  { 'V', "...-" },
-  { 'W', ".--" },
-  { 'X', "-..-" },
-  { 'Y', "-.--" },
-  { 'Z', "--.." },
-  { ' ', "     " }, //Gap between word, seven units
-
-  { '1', ".----" },
-  { '2', "..---" },
-  { '3', "...--" },
-  { '4', "....-" },
-  { '5', "....." },
-  { '6', "-...." },
-  { '7', "--..." },
-  { '8', "---.." },
-  { '9', "----." },
-  { '0', "-----" },
-
-  { '.', "·–·–·–" },
-  { ',', "--..--" },
-  { '?', "..--.." },
-  { '!', "-.-.--" },
-  { ':', "---..." },
-  { ';', "-.-.-." },
-  { '(', "-.--." },
-  { ')', "-.--.-" },
-  { '"', ".-..-." },
-  { '@', ".--.-." },
-  { '&', ".-..." },
-};
-
+float persistence = 0.9;
+float previous_output = 0;
+float output;
+float input;
 
 void setup() {
+  pinMode(keyPin, INPUT);
+  pinMode(5, OUTPUT);
+  for (int i = 0; i < 4; i++) {
+    pinMode(bulbPins[i], OUTPUT);
+  }
+
   Serial.begin(9600);
   WiFi.begin(ssid, password);
   // wait for wifi to connect
@@ -142,11 +92,7 @@ void setup() {
   oscUDPwifi.begin(wifiUDP);
 
   destination.set(destinationIP, destinationPort);
-  pinMode(keyPin, INPUT);
-  pinMode(5, OUTPUT);
-  for (int i = 0; i < 4; i++) {
-    pinMode(bulbPins[i], OUTPUT);
-  }
+
 
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
     battArr[thisReading] = 0;
@@ -155,32 +101,22 @@ void setup() {
 
 void loop() {
   KeyDetect();
-  if (ms > 40000) {
-    Serial.println(analogRead(A0));
-    Serial.println(batteryLevel);
-    sendOscStatus();
-    ms = 0;
-  }
+
+  sendOscStatus();
   yield();
   oscUDPwifi.listen();
   ms++;
-  if (ms % 5000 == 0) {
-    total = total - battArr[readIndex];
-    battArr[readIndex] = analogRead(A0) * (68 / 8.2) / 1000;
-    //battArr[readIndex] = map(analogRead(A0), lowestInput, highestInput, 0, 100);
-    total = total + battArr[readIndex];
-    readIndex++;
-    if (readIndex >= numReadings) {
-      readIndex = 0;
-    }
-  }
+
+  input = analogRead(A0) * (68 / 8.2) / 1000;
+  output = input * (1 - persistence ) + previous_output * (persistence);
+  previous_output = output;
+
   for (int i = 0; i < 4; i++) {
     digitalWrite(bulbPins[i], bulbs[i]);
   }
 }
 
 void oscEvent(OscMessage & msg) {
-  msg.plug("/sounder/updateWord", updateWord);
   msg.plug("/key/bulbs", updateBulbs);
   msg.plug("/key/incorrect", incorrect);
 }
@@ -189,23 +125,11 @@ void oscEvent(OscMessage & msg) {
 void incorrect(OscMessage & msg) {
   int bulb = msg.getInt(0);
 
-digitalWrite(bulbPins[bulb], HIGH); //turn the bulb on
-delay(500);
-digitalWrite(bulbPins[bulb], LOW);  //turn the bulb off
-delay(250);
-digitalWrite(bulbPins[bulb], HIGH); //turn the bulb on
-delay(500);
-digitalWrite(bulbPins[bulb], LOW);  //turn the bulb off
-delay(250);
-digitalWrite(bulbPins[bulb], HIGH); //turn the bulb on
-delay(500);
-digitalWrite(bulbPins[bulb], LOW);  //turn the bulb off
+  digitalWrite(bulbPins[bulb], HIGH); //turn the bulb on
+  delay(500);
+  digitalWrite(bulbPins[bulb], LOW);  //turn the bulb off
 }
 
-void updateWord(OscMessage & msg) {
-  // set the word to incoming string
-  msg.getString(0, goalWord, msg.getDataLength(0));
-}
 
 void updateBulbs(OscMessage & msg) {
   for (int i = 0; i < 4; i++) {
@@ -214,7 +138,7 @@ void updateBulbs(OscMessage & msg) {
 }
 
 void sendOscStatus() {
-  batteryLevel = total / numReadings;
+  batteryLevel = output;
   char ca[wordInput.length()];
   wordInput.toCharArray(ca, wordInput.length() + 1);
   OscMessage msg("/key");
@@ -247,58 +171,17 @@ void KeyDetect() {
           OscMessage msg("/key");
           msg.add(".");
           oscUDPwifi.send(msg, destination);
-          rawInput += ".";
         }
       } else {
         Serial.println("DASH");
         OscMessage msg("/key");
         msg.add("-");
         oscUDPwifi.send(msg, destination);
-        rawInput += "-";
       }
       digitalWrite(5, LOW);
       buttonWasPressed = false;
       lastTimestamp = currentTimestamp;
     }
-    if (duration > letterGap && duration < wordGap) {
-      rawInput += " ";
-      wordInput = Decode(rawInput);
-      rawInput = "";
-    } else if (duration > wordGap && !wordInput.equals("null")) {
-      wordFinished = true;
-      OscMessage msg("/key");
-      msg.add(wordInput);
-      oscUDPwifi.send(msg, destination);
-      //wordInput="";
-    }
   }
 }
 
-//converts morse code into letters
-String Decode(String morse)
-{
-  String msg = "";
-
-  int lastPos = 0;
-  int pos = morse.indexOf(' ');
-  while ( lastPos <= morse.lastIndexOf(' ') )
-  {
-    for ( int i = 0; i < sizeof MorseMap / sizeof * MorseMap; ++i )
-    {
-      if ( morse.substring(lastPos, pos) == MorseMap[i].code )
-      {
-        msg += MorseMap[i].letter;
-      }
-    }
-
-    lastPos = pos + 1;
-    pos = morse.indexOf(' ', lastPos);
-
-    while ( morse[lastPos] == ' ' && morse[pos + 1] == ' ' )
-    {
-      pos ++;
-    }
-  }
-  //Serial.println(msg);
-  return msg;
-}
