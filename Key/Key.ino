@@ -73,6 +73,7 @@ void setup() {
   }
 
   Serial.begin(9600);
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   // wait for wifi to connect
   Serial.print("Connecting to ");
@@ -105,7 +106,6 @@ void loop() {
   sendOscStatus();
   yield();
   oscUDPwifi.listen();
-  ms++;
 
   input = analogRead(A0) * (68 / 8.2) / 1000;
   output = input * (1 - persistence ) + previous_output * (persistence);
